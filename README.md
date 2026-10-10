@@ -32,7 +32,7 @@ the vendor's libraries.
 ## ✇ Current status of drivers
 | Driver | Status | Description |
 |:--------|:-------:|:-------------:|
-| RCC    | Planned | Reset and clock control |
+| RCC    | In progress | Reset and clock control |
 | GPIO   | Planned | General-purpose I/O |
 | EXTI   | Planned | External interrupts and events |
 | UART/USART | Planned | Serial communication |
