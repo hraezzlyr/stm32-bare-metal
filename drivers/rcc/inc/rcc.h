@@ -27,15 +27,17 @@ bool rcc_is_hse_rdy(void);
 
 /* PLL functions*/
 typedef struct {
-    uint8_t pllm;
+    uint16_t pllm;
     uint16_t plln;
-    uint8_t pllp;
-    uint8_t pllq;
+    uint16_t pllp;
+    uint16_t pllq;
     rcc_pll_src_e pll_src;
 } pll_config_t;
 
-rcc_status_e rcc_config_pll(const pll_config_t *pll_config);
-
+void rcc_enable_pll(bool enable);
 bool rcc_is_pll_rdy(void);
+bool rcc_is_pll_on(void);
+rcc_status_e rcc_config_pll(const pll_config_t *pll_config);
+rcc_status_e rcc_read_pll_config(pll_config_t *pll_config);
 
 #endif /* RCC_H */
