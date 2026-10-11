@@ -8,6 +8,8 @@
 #define MIN_PLLQ_VALUE      2
 #define MAX_PLLQ_VALUE      15
 
+#define MAX_PLLSRC_VALUE    1
+
 static const uint16_t REAL_PLLP_DIVIDERS[] = {2, 4, 6, 8};
 static const uint16_t FIELD_PLLP_DIVIDERS[] = {0, 1, 2, 3};
 
@@ -62,7 +64,7 @@ static rcc_status_e s_rcc_pll_config_valid(const pll_config_t *pll_config) {
         (pll_config->pllq > MAX_PLLQ_VALUE) ||
         (pll_config->pllq < MIN_PLLQ_VALUE) ||
         (pllp_idx_in_tab == UINT8_MAX) ||
-        ((uint32_t)pll_config->pll_src >= RCC_PLLSRC_COUNT)) {
+        ((uint32_t)pll_config->pll_src > MAX_PLLSRC_VALUE)) {
 
         return RCC_INVALID_PARAMS;
     }
@@ -90,6 +92,25 @@ void rcc_enable_hse(bool enable) {
     } else {
         RCC->CR &= ~RCC_CR_HSEON_Msk;
     }
+}
+
+rcc_status_e rcc_enable_hse_in_bypass(bool enable) {
+    if ((rcc_get_sysclk_src() == RCC_CLK_HSE) ||
+        ((rcc_get_pll_source() == RCC_CLK_HSE) &&
+        (rcc_is_pll_on()))) {
+        return RCC_HSE_BUSY;
+    }
+
+    rcc_enable_hse(false);
+
+    if (enable) {        
+        RCC->CR |= RCC_CR_HSEBYP_Msk;
+        rcc_enable_hse(true); 
+    } else {
+        RCC->CR &= ~RCC_CR_HSEBYP_Msk;
+    }
+
+    return RCC_OK;
 }
 
 bool rcc_is_hse_rdy(void) {
@@ -122,7 +143,7 @@ rcc_status_e rcc_config_pll(const pll_config_t *pll_config) {
         return RCC_PLL_BUSY;
     }
 
-    rcc_pll_src_e pll_src = pll_config->pll_src;
+    rcc_clk_src_e pll_src = pll_config->pll_src;
     uint16_t pllm = pll_config->pllm;
     uint16_t plln = pll_config->plln;
     uint16_t pllq = pll_config->pllq;
@@ -152,7 +173,12 @@ rcc_status_e rcc_config_pll(const pll_config_t *pll_config) {
     return RCC_OK;
 }
 
-rcc_status_e rcc_read_pll_config(pll_config_t *pll_config) {
+rcc_clk_src_e rcc_get_pll_source(void) {
+    return (rcc_clk_src_e)((RCC->PLLCFGR & RCC_PLLCFGR_PLLSRC_Msk) >>
+                            RCC_PLLCFGR_PLLSRC_Pos);
+}
+
+rcc_status_e rcc_get_pll_config(pll_config_t *pll_config) {
     if (!pll_config) {
         return RCC_INVALID_PTR;
     }
@@ -171,7 +197,7 @@ rcc_status_e rcc_read_pll_config(pll_config_t *pll_config) {
                     RCC_PLLCFGR_PLLQ_Pos);
 
     pll_config->pll_src =
-        (rcc_pll_src_e)((rcc_pllcfgr & RCC_PLLCFGR_PLLSRC_Msk) >>
+        (rcc_clk_src_e)((rcc_pllcfgr & RCC_PLLCFGR_PLLSRC_Msk) >>
                         RCC_PLLCFGR_PLLSRC_Pos);
 
     uint32_t pllp_bitfield =
@@ -185,4 +211,21 @@ rcc_status_e rcc_read_pll_config(pll_config_t *pll_config) {
     pll_config->pllp = pllp;
 
     return RCC_OK;
+}
+
+/* SYSCLK functions */
+rcc_status_e rcc_set_sysclk_src(rcc_clk_src_e sysclk_src) {
+    if ((uint32_t)sysclk_src >= RCC_CLK_COUNT) {
+        return RCC_INVALID_PARAMS;
+    }
+
+    uint32_t new_value = ((uint32_t)sysclk_src << RCC_CFGR_SW_Pos);
+
+    RCC->CFGR = (RCC->CFGR & (~RCC_CFGR_SW_Msk)) | new_value;
+
+    return RCC_OK;
+}
+
+rcc_clk_src_e rcc_get_sysclk_src(void) {
+    return (rcc_clk_src_e)((RCC->CFGR & RCC_CFGR_SWS_Msk) >> RCC_CFGR_SWS_Pos);
 }
