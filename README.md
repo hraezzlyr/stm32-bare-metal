@@ -67,6 +67,12 @@ So these are not mine:
 ## 📋 Project Structure
 ```text
 stm32-bare-metal/
+├── drivers
+│   └── rcc
+│       ├── inc
+│       │   └── rcc.h
+│       └── src
+│           └── rcc.c
 ├── vendor/
 │   ├── cmsis/
 │   │   └── inc/
