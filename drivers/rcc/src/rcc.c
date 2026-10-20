@@ -10,6 +10,9 @@
 
 #define MAX_PLLSRC_VALUE    1
 
+#define WAIT_TIME_HSE_OFF   1000
+#define WAIT_SYS_CLK_RDY    1000
+
 static const uint16_t REAL_PLLP_DIVIDERS[] = {2, 4, 6, 8};
 static const uint16_t FIELD_PLLP_DIVIDERS[] = {0, 1, 2, 3};
 
@@ -102,6 +105,16 @@ rcc_status_e rcc_enable_hse_in_bypass(bool enable) {
     }
 
     rcc_enable_hse(false);
+
+    /* Wait until HSE will be turned off */
+    for (volatile uint32_t i = 0; i < WAIT_TIME_HSE_OFF; i++) {
+        if (!(RCC->CR & RCC_CR_HSERDY_Msk)) {
+            break;
+        }
+        if (i == WAIT_TIME_HSE_OFF - 1) {
+            return RCC_HSE_BYPASS_TIMEOUT;
+        }
+    };
 
     if (enable) {        
         RCC->CR |= RCC_CR_HSEBYP_Msk;
@@ -214,18 +227,45 @@ rcc_status_e rcc_get_pll_config(pll_config_t *pll_config) {
 }
 
 /* SYSCLK functions */
+rcc_clk_src_e rcc_get_sysclk_src(void) {
+    return (rcc_clk_src_e)((RCC->CFGR & RCC_CFGR_SWS_Msk) >> RCC_CFGR_SWS_Pos);
+}
+
 rcc_status_e rcc_set_sysclk_src(rcc_clk_src_e sysclk_src) {
     if ((uint32_t)sysclk_src >= RCC_CLK_COUNT) {
         return RCC_INVALID_PARAMS;
+    }
+
+    /* Check if the given SYSCLK source is ready */
+    uint32_t sysclk_src_mask;
+    switch (sysclk_src) {
+        case RCC_CLK_HSI:
+            sysclk_src_mask = RCC_CR_HSIRDY_Msk;
+            break;
+        case RCC_CLK_HSE:
+            sysclk_src_mask = RCC_CR_HSERDY_Msk;
+            break;
+        default:
+            sysclk_src_mask = RCC_CR_PLLRDY_Msk;
+    }
+
+    if (!(RCC->CR & sysclk_src_mask)) {
+        return RCC_SYSCLK_SRC_NOT_RDY;
     }
 
     uint32_t new_value = ((uint32_t)sysclk_src << RCC_CFGR_SW_Pos);
 
     RCC->CFGR = (RCC->CFGR & (~RCC_CFGR_SW_Msk)) | new_value;
 
-    return RCC_OK;
-}
+    /* Wait until SYSCLK will be turned on using the given source*/
+    for (uint32_t i = 0; i < WAIT_SYS_CLK_RDY; i++) {
+        if (rcc_get_sysclk_src() == sysclk_src) {
+            break;
+        }
+        if (i == WAIT_SYS_CLK_RDY - 1) {
+            return RCC_SYSCLK_NOT_RDY;
+        }
+    };
 
-rcc_clk_src_e rcc_get_sysclk_src(void) {
-    return (rcc_clk_src_e)((RCC->CFGR & RCC_CFGR_SWS_Msk) >> RCC_CFGR_SWS_Pos);
+    return RCC_OK;
 }

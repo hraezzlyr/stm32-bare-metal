@@ -9,7 +9,10 @@ typedef enum {
     RCC_INVALID_PTR,
     RCC_INVALID_PARAMS,
     RCC_HSE_BUSY,
-    RCC_PLL_BUSY
+    RCC_HSE_BYPASS_TIMEOUT,
+    RCC_PLL_BUSY,
+    RCC_SYSCLK_SRC_NOT_RDY,
+    RCC_SYSCLK_NOT_RDY
 } rcc_status_e;
 
 typedef enum {
